@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { enrollmentSchema } from '@/lib/validations';
-import { appendEnrollmentToSheet } from '@/lib/googleSheets';
-import { triggerSnapServeCall } from '@/lib/snapServe';
+import { enrollmentSchema } from '../../../lib/validations';
+import { appendEnrollmentToSheet } from '../../../lib/googleSheets';
+import { triggerSnapServeCall } from '../../../lib/snapServe';
 
 export async function GET() {
   return NextResponse.json(

@@ -16,7 +16,7 @@ import {
   ShieldCheck,
   FileSpreadsheet,
 } from 'lucide-react';
-import { EnrollmentFormData } from '@/lib/validations';
+import { EnrollmentFormData } from '../lib/validations';
 
 export default function EnrollmentForm() {
   const [formData, setFormData] = useState<Partial<EnrollmentFormData>>({

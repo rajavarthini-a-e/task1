@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getEnrollmentLeads } from '@/lib/googleSheets';
-import { voiceAgentQuerySchema } from '@/lib/validations';
+import { getEnrollmentLeads } from '../../../lib/googleSheets';
+import { voiceAgentQuerySchema } from '../../../lib/validations';
+import { appendCallLog } from '../../../lib/callLogs';
 
 /**
  * GET /api/voice-agent
@@ -88,6 +89,26 @@ export async function POST(request: NextRequest) {
 
     if (action === 'log_call_summary') {
       console.log('📞 [AI Voice Agent Call Summary Logged]:', callDetails);
+
+      const summaryStr = callDetails?.summary || 'AI Voice Counseling call completed.';
+      const statusStr = (callDetails?.status || 'completed') as any;
+
+      await appendCallLog({
+        agentId: 101, // default counselor agent
+        toNumber: phone || 'Unknown',
+        fromNumber: 'AI Voice Counselor',
+        status: statusStr,
+        durationSeconds: 120, // default counseling call duration
+        costCents: 18,
+        summary: summaryStr,
+        recordingUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+        transcript: [
+          { sender: 'assistant', text: 'Hello, this is Alex from EduAI Academy. I noticed your recent enrollment query!' },
+          { sender: 'user', text: 'Yes, hi Alex. I had some questions about the courses.' },
+          { sender: 'assistant', text: `Sure. We logged the following summary of our conversation: ${summaryStr}` }
+        ]
+      });
+
       return NextResponse.json({
         success: true,
         message: 'Counseling call transcript & summary logged successfully.',

@@ -1,4 +1,4 @@
-import { getEnrollmentLeadsFromDatabase } from '@/lib/database';
+import { getEnrollmentLeadsFromDatabase } from '../../../../lib/database';
 
 function escapeCsv(value: string) {
   if (value == null) return '';

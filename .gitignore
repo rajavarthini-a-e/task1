@@ -13,3 +13,8 @@ out
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# local database & build caches
+frontend/.data/
+*.tsbuildinfo
+

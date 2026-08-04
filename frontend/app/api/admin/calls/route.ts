@@ -79,6 +79,10 @@ export async function GET(request: NextRequest) {
 
         if (response.ok) {
           const liveCalls = await response.json();
+          
+          // Print raw response to server logs for debugging as requested
+          console.log('🔍 [DEBUG] Raw SnapServe API calls response:', JSON.stringify(liveCalls, null, 2));
+
           if (Array.isArray(liveCalls)) {
             // Map live calls to our schema
             const mappedCalls: CallRecord[] = liveCalls.map((call: any) => {
@@ -138,15 +142,31 @@ export async function GET(request: NextRequest) {
               count: filteredCalls.length,
               calls: filteredCalls,
             });
+          } else {
+            console.error('❌ SnapServe API response is not an array:', liveCalls);
+            return NextResponse.json({
+              success: false,
+              error: 'Invalid response format from SnapServe: Expected an array of calls.'
+            }, { status: 502 });
           }
+        } else {
+          const errorText = await response.text();
+          console.error(`❌ SnapServe API returned error status ${response.status}:`, errorText);
+          return NextResponse.json({
+            success: false,
+            error: `SnapServe Calls API returned error ${response.status}: ${errorText || response.statusText}`
+          }, { status: response.status });
         }
-        console.warn(`⚠️ SnapServe Calls API returned status ${response.status}. Falling back to local logs.`);
-      } catch (fetchErr) {
+      } catch (fetchErr: any) {
         console.error('❌ Failed to fetch calls from SnapServe API:', fetchErr);
+        return NextResponse.json({
+          success: false,
+          error: `SnapServe network/fetch error: ${fetchErr?.message || 'Connection failed'}`
+        }, { status: 500 });
       }
     }
 
-    // Local JSON fallback
+    // Local JSON fallback (only if SNAPSERVE_API_TOKEN is not configured)
     const logs = await getCallLogs(targetAgentId !== undefined && !isNaN(targetAgentId) ? targetAgentId : undefined);
 
     return NextResponse.json({

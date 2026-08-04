@@ -51,6 +51,8 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
   const [selectedCallStatus, setSelectedCallStatus] = useState('All');
   const [selectedCall, setSelectedCall] = useState<CallRecord | null>(null);
 
+  const [callsError, setCallsError] = useState<string | null>(null);
+
   // Global Loading States
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -59,6 +61,7 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
   const fetchData = async () => {
     try {
       setRefreshing(true);
+      setCallsError(null);
       
       // 1. Fetch leads
       const leadsRes = await fetch('/api/admin/leads');
@@ -73,9 +76,12 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
       if (callsData.success && Array.isArray(callsData.calls)) {
         setCalls(callsData.calls);
         setCallsSource(callsData.source || 'mock');
+      } else {
+        setCallsError(callsData.error || 'Failed to retrieve call logs.');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching dashboard data:', err);
+      setCallsError(err?.message || 'A network error occurred while loading call logs.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -262,6 +268,17 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
             >
               Configure Vercel
             </a>
+          </div>
+        )}
+
+        {/* Error banner if fetching calls failed */}
+        {activeTab === 'calls' && callsError && (
+          <div className="bg-red-955/40 border border-red-500/20 rounded-2xl p-5 text-red-300 text-xs sm:text-sm flex items-start gap-2.5 backdrop-blur-sm">
+            <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5 sm:mt-0" />
+            <div>
+              <strong className="font-bold">Error Fetching SnapServe Call History:</strong>
+              <p className="mt-1 text-slate-300">{callsError}</p>
+            </div>
           </div>
         )}
 

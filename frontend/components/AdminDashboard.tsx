@@ -24,12 +24,8 @@ import {
   AlertTriangle,
   Activity,
   Download,
-  Bot,
-  Sliders,
-  Volume2,
 } from 'lucide-react';
 import { EnrollmentRecord } from '../lib/googleSheets';
-import { SnapServeAgent } from '../app/api/admin/agents/route';
 import { CallRecord } from '../lib/callLogs';
 
 interface AdminDashboardProps {
@@ -39,20 +35,13 @@ interface AdminDashboardProps {
 
 export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
   // Navigation State
-  const [activeTab, setActiveTab] = useState<'leads' | 'agents' | 'calls'>('leads');
+  const [activeTab, setActiveTab] = useState<'leads' | 'calls'>('leads');
 
   // Leads Tab States
   const [leads, setLeads] = useState<EnrollmentRecord[]>([]);
   const [selectedCourse, setSelectedCourse] = useState('All');
   const [selectedLead, setSelectedLead] = useState<EnrollmentRecord | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-
-  // Agents Tab States
-  const [agents, setAgents] = useState<SnapServeAgent[]>([]);
-  const [agentsSource, setAgentsSource] = useState<'live' | 'mock'>('mock');
-  const [selectedAgent, setSelectedAgent] = useState<SnapServeAgent | null>(null);
-  const [agentSearchQuery, setAgentSearchQuery] = useState('');
-  const [selectedAgentStatus, setSelectedAgentStatus] = useState('All');
 
   // Call Logs Tab States
   const [calls, setCalls] = useState<CallRecord[]>([]);
@@ -78,15 +67,7 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
         setLeads(leadsData.leads);
       }
 
-      // 2. Fetch agents
-      const agentsRes = await fetch('/api/admin/agents');
-      const agentsData = await agentsRes.json();
-      if (agentsData.success && Array.isArray(agentsData.agents)) {
-        setAgents(agentsData.agents);
-        setAgentsSource(agentsData.source || 'mock');
-      }
-
-      // 3. Fetch call logs
+      // 2. Fetch call logs
       const callsRes = await fetch('/api/admin/calls');
       const callsData = await callsRes.json();
       if (callsData.success && Array.isArray(callsData.calls)) {
@@ -160,19 +141,6 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
     document.body.removeChild(link);
   };
 
-  // ==================== Agents Filter Logic ====================
-  const filteredAgents = agents.filter((agent) => {
-    const matchesSearch =
-      agent.name.toLowerCase().includes(agentSearchQuery.toLowerCase()) ||
-      agent.description.toLowerCase().includes(agentSearchQuery.toLowerCase()) ||
-      agent.llmModel.toLowerCase().includes(agentSearchQuery.toLowerCase()) ||
-      agent.ttsVoice.toLowerCase().includes(agentSearchQuery.toLowerCase());
-
-    const matchesStatus = selectedAgentStatus === 'All' || agent.status === selectedAgentStatus;
-
-    return matchesSearch && matchesStatus;
-  });
-
   // ==================== Call Logs Filter Logic ====================
   const filteredCalls = calls.filter((call) => {
     const matchesSearch =
@@ -217,11 +185,11 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
             <div>
               <span className="text-lg font-bold text-white flex items-center gap-2">
                 EduAI Admin Hub
-                <span className="text-[10px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded-full uppercase tracking-wider font-semibold">
+                <span className="text-[10px] bg-indigo-500/20 text-indigo-305 border border-indigo-500/30 px-2 py-0.5 rounded-full uppercase tracking-wider font-semibold">
                   Live System
                 </span>
               </span>
-              <p className="text-xs text-slate-400">Logged in as <span className="text-indigo-400 font-medium">{user.username}</span></p>
+              <p className="text-xs text-slate-400">Logged in as <span className="text-indigo-405 font-medium">{user.username}</span></p>
             </div>
           </div>
 
@@ -238,7 +206,7 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
 
             <button
               onClick={onLogout}
-              className="p-2.5 px-4 rounded-xl bg-red-950/40 border border-red-900/60 text-red-300 hover:bg-red-900/60 hover:text-white transition-colors flex items-center gap-2 text-xs font-medium cursor-pointer"
+              className="p-2.5 px-4 rounded-xl bg-red-955/40 border border-red-900/60 text-red-300 hover:bg-red-900/60 hover:text-white transition-colors flex items-center gap-2 text-xs font-medium cursor-pointer"
             >
               <LogOut className="w-4 h-4" />
               <span>Log Out</span>
@@ -255,7 +223,7 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
             onClick={() => setActiveTab('leads')}
             className={`pb-4 px-6 text-sm font-semibold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
               activeTab === 'leads'
-                ? 'border-indigo-500 text-indigo-400 font-bold'
+                ? 'border-indigo-500 text-indigo-404 font-bold'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -264,22 +232,10 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
             <span className="text-xs bg-slate-805 text-slate-400 px-2 py-0.5 rounded-full ml-1 font-medium">{leads.length}</span>
           </button>
           <button
-            onClick={() => setActiveTab('agents')}
-            className={`pb-4 px-6 text-sm font-semibold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
-              activeTab === 'agents'
-                ? 'border-indigo-500 text-indigo-400 font-bold'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Bot className="w-4.5 h-4.5" />
-            <span>AI Voice Agents</span>
-            <span className="text-xs bg-slate-805 text-slate-400 px-2 py-0.5 rounded-full ml-1 font-medium">{agents.length}</span>
-          </button>
-          <button
             onClick={() => setActiveTab('calls')}
             className={`pb-4 px-6 text-sm font-semibold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
               activeTab === 'calls'
-                ? 'border-indigo-500 text-indigo-400 font-bold'
+                ? 'border-indigo-500 text-indigo-404 font-bold'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -288,6 +244,26 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
             <span className="text-xs bg-slate-805 text-slate-400 px-2 py-0.5 rounded-full ml-1 font-medium">{calls.length}</span>
           </button>
         </div>
+
+        {/* Vercel Environment Variables warning banner if in fallback mode */}
+        {activeTab === 'calls' && callsSource === 'mock' && (
+          <div className="bg-amber-955/40 border border-amber-500/20 rounded-2xl p-5 text-amber-300 text-xs sm:text-sm flex flex-col sm:flex-row gap-3 sm:items-center justify-between backdrop-blur-sm">
+            <div className="flex items-start sm:items-center gap-2.5">
+              <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5 sm:mt-0" />
+              <span>
+                <strong>Demo Mode Active:</strong> Showing seeded mock data. To view real-time call logs from SnapServe, add the <strong><code>SNAPSERVE_API_TOKEN</code></strong> environment variable to your project settings.
+              </span>
+            </div>
+            <a 
+              href="https://vercel.com" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-xs font-semibold border border-amber-500/30 transition-all w-fit"
+            >
+              Configure Vercel
+            </a>
+          </div>
+        )}
 
         {/* Tab Specific KPI Cards */}
         {activeTab === 'leads' ? (
@@ -312,7 +288,7 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Top Requested Course</p>
-                  <h3 className="text-sm font-bold text-indigo-300 mt-1 truncate max-w-[170px]" title={topCourse}>
+                  <h3 className="text-sm font-bold text-indigo-305 mt-1 truncate max-w-[170px]" title={topCourse}>
                     {topCourse}
                   </h3>
                 </div>
@@ -353,69 +329,6 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
                 </div>
               </div>
               <div className="mt-3 text-xs text-slate-400">Synchronized lead store</div>
-            </div>
-          </div>
-        ) : activeTab === 'agents' ? (
-          /* AGENTS METRICS */
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
-            <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 backdrop-blur-sm relative overflow-hidden">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Total Agents</p>
-                  <h3 className="text-3xl font-extrabold text-white mt-1">{agents.length}</h3>
-                </div>
-                <div className="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
-                  <Bot className="w-6 h-6" />
-                </div>
-              </div>
-              <div className="mt-3 flex items-center text-xs text-indigo-455 font-medium">
-                <Activity className="w-3.5 h-3.5 mr-1" /> Configured AI voice agents
-              </div>
-            </div>
-
-            <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 backdrop-blur-sm relative overflow-hidden">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Active Agents</p>
-                  <h3 className="text-3xl font-extrabold text-emerald-450 mt-1">
-                    {agents.filter((a) => a.status === 'active' || a.status === 'draft').length}
-                  </h3>
-                </div>
-                <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-                  <CheckCircle2 className="w-6 h-6" />
-                </div>
-              </div>
-              <div className="mt-3 text-xs text-slate-400">Online and ready for calls</div>
-            </div>
-
-            <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 backdrop-blur-sm relative overflow-hidden">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Aggregated Calls</p>
-                  <h3 className="text-3xl font-extrabold text-white mt-1">
-                    {agents.reduce((sum, a) => sum + (a.totalCalls || 0), 0)}
-                  </h3>
-                </div>
-                <div className="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
-                  <Phone className="w-6 h-6" />
-                </div>
-              </div>
-              <div className="mt-3 text-xs text-slate-400">Cumulative calls across agents</div>
-            </div>
-
-            <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 backdrop-blur-sm relative overflow-hidden">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Avg LLM Latency</p>
-                  <h3 className="text-2xl font-extrabold text-blue-400 mt-2">
-                    {Math.round(agents.reduce((sum, a) => sum + (a.avgLlmLatencyMs || 0), 0) / (agents.length || 1))}ms
-                  </h3>
-                </div>
-                <div className="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
-                  <Clock className="w-6 h-6" />
-                </div>
-              </div>
-              <div className="mt-3 text-xs text-slate-400">Average response latency</div>
             </div>
           </div>
         ) : (
@@ -489,7 +402,7 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search student, email, phone..."
-                className="w-full pl-10 pr-4 py-2.5 bg-slate-950/80 border border-slate-800 rounded-xl text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-950/80 border border-slate-800 rounded-xl text-white text-sm placeholder-slate-505 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
               />
               {searchQuery && (
                 <button
@@ -505,7 +418,7 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
             <div className="flex items-center gap-3 w-full md:w-auto">
               <div className="relative flex-1 md:flex-none">
                 <div className="flex items-center gap-2">
-                  <Filter className="w-4 h-4 text-indigo-400" />
+                  <Filter className="w-4 h-4 text-indigo-405" />
                   <select
                     value={selectedCourse}
                     onChange={(e) => setSelectedCourse(e.target.value)}
@@ -532,48 +445,6 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
               </button>
             </div>
           </div>
-        ) : activeTab === 'agents' ? (
-          /* AGENTS CONTROLS */
-          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 flex flex-col md:flex-row gap-4 items-center justify-between shadow-lg">
-            {/* Search Box */}
-            <div className="relative w-full md:w-80">
-              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                value={agentSearchQuery}
-                onChange={(e) => setAgentSearchQuery(e.target.value)}
-                placeholder="Search name, description, model..."
-                className="w-full pl-10 pr-4 py-2.5 bg-slate-950/80 border border-slate-800 rounded-xl text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-              />
-              {agentSearchQuery && (
-                <button
-                  onClick={() => setAgentSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-
-            {/* Filter Dropdown */}
-            <div className="flex items-center gap-3 w-full md:w-auto">
-              <div className="relative flex-1 md:flex-none">
-                <div className="flex items-center gap-2">
-                  <Filter className="w-4 h-4 text-indigo-400" />
-                  <select
-                    value={selectedAgentStatus}
-                    onChange={(e) => setSelectedAgentStatus(e.target.value)}
-                    className="bg-slate-950 border border-slate-800 rounded-xl text-white text-sm py-2.5 px-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-                  >
-                    <option value="All">All Statuses</option>
-                    <option value="active">Active</option>
-                    <option value="draft">Draft</option>
-                    <option value="inactive">Inactive</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-          </div>
         ) : (
           /* CALL LOGS CONTROLS */
           <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 flex flex-col md:flex-row gap-4 items-center justify-between shadow-lg">
@@ -585,7 +456,7 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
                 value={callSearchQuery}
                 onChange={(e) => setCallSearchQuery(e.target.value)}
                 placeholder="Search number, agent, ID..."
-                className="w-full pl-10 pr-4 py-2.5 bg-slate-950/80 border border-slate-800 rounded-xl text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-950/80 border border-slate-800 rounded-xl text-white text-sm placeholder-slate-505 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
               />
               {callSearchQuery && (
                 <button
@@ -602,7 +473,7 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
               {/* Agent Filter */}
               <div className="relative flex-1 sm:flex-none">
                 <div className="flex items-center gap-2">
-                  <Filter className="w-4 h-4 text-indigo-400 font-semibold" />
+                  <Filter className="w-4 h-4 text-indigo-405 font-semibold" />
                   <select
                     value={selectedCallAgent}
                     onChange={(e) => setSelectedCallAgent(e.target.value)}
@@ -621,7 +492,7 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
               {/* Status Filter */}
               <div className="relative flex-1 sm:flex-none">
                 <div className="flex items-center gap-2">
-                  <Filter className="w-4 h-4 text-indigo-400 font-semibold" />
+                  <Filter className="w-4 h-4 text-indigo-405 font-semibold" />
                   <select
                     value={selectedCallStatus}
                     onChange={(e) => setSelectedCallStatus(e.target.value)}
@@ -645,7 +516,7 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
           <div className="bg-slate-900/80 border border-slate-800 rounded-2xl shadow-xl overflow-hidden animate-fadeIn">
             <div className="p-5 border-b border-slate-800 flex items-center justify-between">
               <h2 className="text-base font-bold text-white flex items-center gap-2">
-                <FileSpreadsheet className="w-5 h-5 text-indigo-400" />
+                <FileSpreadsheet className="w-5 h-5 text-indigo-405" />
                 Student Registration Records ({filteredLeads.length})
               </h2>
               {searchQuery || selectedCourse !== 'All' ? (
@@ -654,7 +525,7 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
                     setSearchQuery('');
                     setSelectedCourse('All');
                   }}
-                  className="text-xs text-indigo-400 hover:underline"
+                  className="text-xs text-indigo-405 hover:underline"
                 >
                   Reset filters
                 </button>
@@ -663,7 +534,7 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
 
             {loading ? (
               <div className="p-12 text-center text-slate-400 space-y-3">
-                <RefreshCw className="w-8 h-8 animate-spin mx-auto text-indigo-400" />
+                <RefreshCw className="w-8 h-8 animate-spin mx-auto text-indigo-405" />
                 <p className="text-sm">Loading enrollment records...</p>
               </div>
             ) : filteredLeads.length === 0 ? (
@@ -694,7 +565,7 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
                       >
                         <td className="py-4 px-6 text-xs text-slate-400 whitespace-nowrap">
                           <span className="flex items-center gap-1.5">
-                            <Calendar className="w-3.5 h-3.5 text-indigo-400" />
+                            <Calendar className="w-3.5 h-3.5 text-indigo-405" />
                             {lead.timestamp || 'N/A'}
                           </span>
                         </td>
@@ -703,11 +574,11 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
                         </td>
                         <td className="py-4 px-6 text-xs space-y-0.5">
                           <div className="flex items-center gap-1.5 text-slate-300">
-                            <Mail className="w-3.5 h-3.5 text-slate-505" />
+                            <Mail className="w-3.5 h-3.5 text-slate-500" />
                             {lead.email}
                           </div>
                           <div className="flex items-center gap-1.5 text-slate-400">
-                            <Phone className="w-3.5 h-3.5 text-slate-505" />
+                            <Phone className="w-3.5 h-3.5 text-slate-500" />
                             {lead.phone}
                           </div>
                         </td>
@@ -726,125 +597,9 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
                               e.stopPropagation();
                               setSelectedLead(lead);
                             }}
-                            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-805 hover:bg-indigo-600 text-slate-200 hover:text-white transition-colors inline-flex items-center gap-1 cursor-pointer"
+                            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-805 hover:bg-indigo-600 text-slate-205 hover:text-white transition-colors inline-flex items-center gap-1 cursor-pointer"
                           >
                             <span>Details</span>
-                            <ChevronRight className="w-3.5 h-3.5" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        ) : activeTab === 'agents' ? (
-          /* AGENTS DATA TABLE */
-          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl shadow-xl overflow-hidden animate-fadeIn">
-            <div className="p-5 border-b border-slate-800 flex items-center justify-between">
-              <h2 className="text-base font-bold text-white flex items-center gap-2">
-                <Bot className="w-5 h-5 text-indigo-400" />
-                SnapServe AI Agents ({filteredAgents.length})
-              </h2>
-              {agentSearchQuery || selectedAgentStatus !== 'All' ? (
-                <button
-                  onClick={() => {
-                    setAgentSearchQuery('');
-                    setSelectedAgentStatus('All');
-                  }}
-                  className="text-xs text-indigo-400 hover:underline"
-                >
-                  Reset filters
-                </button>
-              ) : null}
-            </div>
-
-            {loading ? (
-              <div className="p-12 text-center text-slate-400 space-y-3">
-                <RefreshCw className="w-8 h-8 animate-spin mx-auto text-indigo-400" />
-                <p className="text-sm">Loading agents...</p>
-              </div>
-            ) : filteredAgents.length === 0 ? (
-              <div className="p-12 text-center text-slate-400 space-y-3">
-                <Search className="w-8 h-8 mx-auto text-slate-600" />
-                <p className="text-base font-semibold text-slate-300">No matching AI agents found</p>
-                <p className="text-xs text-slate-500">Try adjusting your search query or status filters.</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-slate-950/60 text-slate-400 text-xs uppercase tracking-wider border-b border-slate-800">
-                      <th className="py-4 px-6 font-semibold">Agent Name</th>
-                      <th className="py-4 px-6 font-semibold">LLM Configuration</th>
-                      <th className="py-4 px-6 font-semibold">TTS Voice / Model</th>
-                      <th className="py-4 px-6 font-semibold">Total Calls</th>
-                      <th className="py-4 px-6 font-semibold">Status</th>
-                      <th className="py-4 px-6 text-right font-semibold">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800/60 text-sm">
-                    {filteredAgents.map((agent) => (
-                      <tr
-                        key={agent.id}
-                        className="hover:bg-slate-800/40 transition-colors group cursor-pointer"
-                        onClick={() => {
-                          setSelectedAgent(agent);
-                        }}
-                      >
-                        <td className="py-4 px-6">
-                          <div className="font-semibold text-white group-hover:text-indigo-300 transition-colors">
-                            {agent.name}
-                          </div>
-                          <div className="text-xs text-slate-400 truncate max-w-[280px]">
-                            {agent.description || 'Configured voice assistant.'}
-                          </div>
-                        </td>
-                        <td className="py-4 px-6">
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-indigo-950/40 text-indigo-305 border border-indigo-500/20 uppercase">
-                            {agent.llmProvider || 'openai'}
-                          </span>
-                          <span className="text-xs text-slate-300 ml-2 font-mono">
-                            {agent.llmModel || 'gpt-4o'}
-                          </span>
-                        </td>
-                        <td className="py-4 px-6">
-                          <div className="text-xs font-medium text-slate-205">
-                            Voice: <span className="text-indigo-400 font-bold">{agent.ttsVoice || 'rachel'}</span>
-                          </div>
-                          <div className="text-[10px] text-slate-400 font-mono">
-                            Model: {agent.ttsModel || 'eleven_multilingual_v2'}
-                          </div>
-                        </td>
-                        <td className="py-4 px-6 text-slate-300 font-medium whitespace-nowrap">
-                          <span className="flex items-center gap-1.5">
-                            <Phone className="w-3.5 h-3.5 text-indigo-400" />
-                            {agent.totalCalls || 0} calls
-                          </span>
-                        </td>
-                        <td className="py-4 px-6">
-                          <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wider ${
-                              agent.status === 'active'
-                                ? 'bg-emerald-950/80 text-emerald-450 border border-emerald-500/30'
-                                : agent.status === 'draft'
-                                ? 'bg-indigo-955/80 text-indigo-400 border border-indigo-500/30'
-                                : 'bg-slate-900 text-slate-500 border border-slate-800'
-                            }`}
-                          >
-                            {agent.status}
-                          </span>
-                        </td>
-                        <td className="py-4 px-6 text-right">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedAgent(agent);
-                            }}
-                            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-805 hover:bg-indigo-600 text-slate-200 hover:text-white transition-colors inline-flex items-center gap-1 cursor-pointer"
-                          >
-                            <span>Inspect</span>
                             <ChevronRight className="w-3.5 h-3.5" />
                           </button>
                         </td>
@@ -860,7 +615,7 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
           <div className="bg-slate-900/80 border border-slate-800 rounded-2xl shadow-xl overflow-hidden animate-fadeIn">
             <div className="p-5 border-b border-slate-800 flex items-center justify-between">
               <h2 className="text-base font-bold text-white flex items-center gap-2">
-                <FileSpreadsheet className="w-5 h-5 text-indigo-400" />
+                <FileSpreadsheet className="w-5 h-5 text-indigo-405" />
                 Call Interactions List ({filteredCalls.length})
               </h2>
               {callSearchQuery || selectedCallAgent !== 'All' || selectedCallStatus !== 'All' ? (
@@ -870,7 +625,7 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
                     setSelectedCallAgent('All');
                     setSelectedCallStatus('All');
                   }}
-                  className="text-xs text-indigo-400 hover:underline"
+                  className="text-xs text-indigo-405 hover:underline"
                 >
                   Reset filters
                 </button>
@@ -879,13 +634,13 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
 
             {loading ? (
               <div className="p-12 text-center text-slate-400 space-y-3">
-                <RefreshCw className="w-8 h-8 animate-spin mx-auto text-indigo-400" />
+                <RefreshCw className="w-8 h-8 animate-spin mx-auto text-indigo-405" />
                 <p className="text-sm">Loading call logs...</p>
               </div>
             ) : filteredCalls.length === 0 ? (
               <div className="p-12 text-center text-slate-400 space-y-3">
                 <Phone className="w-8 h-8 mx-auto text-slate-600" />
-                <p className="text-base font-semibold text-slate-305">No call logs found</p>
+                <p className="text-base font-semibold text-slate-300">No call logs found</p>
                 <p className="text-xs text-slate-500">Try modifying your search or dropdown filters.</p>
               </div>
             ) : (
@@ -983,12 +738,12 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
             </button>
 
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-405">
                 <GraduationCap className="w-6 h-6" />
               </div>
               <div>
                 <h3 className="text-xl font-bold text-white">{selectedLead.studentName}</h3>
-                <p className="text-xs text-indigo-400 font-medium">{selectedLead.courseInterested}</p>
+                <p className="text-xs text-indigo-405 font-medium">{selectedLead.courseInterested}</p>
               </div>
             </div>
 
@@ -1017,7 +772,7 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
 
               <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-850">
                 <span className="text-xs text-slate-400 uppercase tracking-wider block mb-1">Learning Goals / Notes</span>
-                <p className="text-slate-305 text-sm leading-relaxed whitespace-pre-wrap mt-1">
+                <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap mt-1">
                   {selectedLead.learningGoal || 'No additional details specified.'}
                 </p>
               </div>
@@ -1039,180 +794,6 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
         </div>
       )}
 
-      {/* ==================== Agent Detail Modal ==================== */}
-      {selectedAgent && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-4xl w-full h-[80vh] flex flex-col shadow-2xl relative animate-fadeIn overflow-hidden">
-            
-            {/* Modal Header */}
-            <div className="p-6 border-b border-slate-800 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
-                  <Bot className="w-6 h-6" />
-                </div>
-                <div className="text-left">
-                  <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                    {selectedAgent.name}
-                    <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                        selectedAgent.status === 'active'
-                          ? 'bg-emerald-950/80 text-emerald-405 border border-emerald-500/30'
-                          : selectedAgent.status === 'draft'
-                          ? 'bg-indigo-950/80 text-indigo-400 border border-indigo-500/30'
-                          : 'bg-slate-800 text-slate-500 border border-slate-700'
-                      }`}
-                    >
-                      {selectedAgent.status}
-                    </span>
-                  </h3>
-                  <p className="text-xs text-slate-400 mt-0.5">{selectedAgent.description || 'Configured SnapServe AI voice agent.'}</p>
-                </div>
-              </div>
-
-              <button
-                onClick={() => setSelectedAgent(null)}
-                className="text-slate-400 hover:text-white p-1.5 rounded-xl bg-slate-800/50 border border-slate-700/50 hover:bg-slate-800 transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6 text-left">
-              {/* System Prompt */}
-              <div className="bg-slate-950/60 p-5 rounded-2xl border border-slate-800/80 space-y-3">
-                <h4 className="text-xs uppercase tracking-wider text-indigo-400 font-semibold flex items-center gap-1.5">
-                  <FileText className="w-4 h-4" /> <span>System Prompt & Identity</span>
-                </h4>
-                <p className="text-sm font-semibold text-slate-205 mt-1">Greeting Message:</p>
-                <div className="bg-indigo-950/20 border border-indigo-500/20 p-3.5 rounded-xl text-slate-300 text-sm font-serif italic">
-                  "{selectedAgent.greetingMessage || 'Hello! How can I assist you today?'}"
-                </div>
-                <p className="text-sm font-semibold text-slate-205 mt-3">Prompt Content:</p>
-                <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap font-mono bg-slate-900 p-4 rounded-xl border border-slate-805/85 max-h-60 overflow-y-auto">
-                  {selectedAgent.systemPrompt}
-                </p>
-              </div>
-
-              {/* Core Settings Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                {/* LLM */}
-                <div className="bg-slate-950/60 p-5 rounded-2xl border border-slate-805/85 space-y-3">
-                  <h4 className="text-xs uppercase tracking-wider text-indigo-400 font-semibold flex items-center gap-1.5">
-                    <Activity className="w-4 h-4" /> <span>Language Model (LLM)</span>
-                  </h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-400">Provider:</span>
-                      <span className="font-semibold text-white capitalize">{selectedAgent.llmProvider || 'openai'}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-400">Model Name:</span>
-                      <span className="font-mono text-indigo-305 text-xs">{selectedAgent.llmModel || 'gpt-4o'}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-400">Temperature:</span>
-                      <span className="font-semibold text-slate-205">{selectedAgent.temperature}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* TTS */}
-                <div className="bg-slate-950/60 p-5 rounded-2xl border border-slate-805/85 space-y-3">
-                  <h4 className="text-xs uppercase tracking-wider text-indigo-400 font-semibold flex items-center gap-1.5">
-                    <Volume2 className="w-4 h-4" /> <span>Text to Speech (TTS)</span>
-                  </h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-400">Provider:</span>
-                      <span className="font-semibold text-white capitalize">{selectedAgent.ttsProvider || 'cartesia'}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-400">Voice ID:</span>
-                      <span className="font-semibold text-indigo-305 text-xs font-mono">{selectedAgent.ttsVoice || 'rachel'}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-400">Model ID:</span>
-                      <span className="text-slate-300 text-xs font-mono">{selectedAgent.ttsModel || 'eleven_multilingual_v2'}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* ASR */}
-                <div className="bg-slate-950/60 p-5 rounded-2xl border border-slate-805/85 space-y-3">
-                  <h4 className="text-xs uppercase tracking-wider text-indigo-400 font-semibold flex items-center gap-1.5">
-                    <Phone className="w-4 h-4" /> <span>Speech to Text (ASR)</span>
-                  </h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-400">Provider:</span>
-                      <span className="font-semibold text-white capitalize">{selectedAgent.asrProvider || 'deepgram'}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-400">Model Name:</span>
-                      <span className="font-mono text-indigo-350 text-xs">{selectedAgent.asrModel || 'nova-2'}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-400">Language:</span>
-                      <span className="font-semibold text-slate-205">{selectedAgent.asrLanguage || 'en-US'}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Telephony and Budgets */}
-              <div className="bg-slate-950/60 p-5 rounded-2xl border border-slate-805/85 space-y-3">
-                <h4 className="text-xs uppercase tracking-wider text-indigo-400 font-semibold flex items-center gap-1.5">
-                  <Database className="w-4 h-4" /> <span>Telephony, Budgets & Limits</span>
-                </h4>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-6 pt-2">
-                  <div>
-                    <span className="text-xs text-slate-400 block">Inbound Phone</span>
-                    <span className="font-semibold text-slate-200 text-sm">
-                      {selectedAgent.inboundPhoneNumberId || 'None (Disabled)'}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-xs text-slate-400 block">Outbound Phone</span>
-                    <span className="font-semibold text-slate-200 text-sm">
-                      {selectedAgent.outboundPhoneNumberId || 'None (Disabled)'}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-xs text-slate-400 block">Max Concurrent Calls</span>
-                    <span className="font-semibold text-slate-200 text-sm">{selectedAgent.maxConcurrentCalls || 0} channels</span>
-                  </div>
-                  <div>
-                    <span className="text-xs text-slate-400 block">Max Call Duration</span>
-                    <span className="font-semibold text-slate-200 text-sm">{selectedAgent.maxDuration} seconds</span>
-                  </div>
-                  <div>
-                    <span className="text-xs text-slate-400 block">Silence Timeout</span>
-                    <span className="font-semibold text-slate-200 text-sm">{selectedAgent.silenceTimeoutSeconds} seconds</span>
-                  </div>
-                  <div>
-                    <span className="text-xs text-slate-400 block">Monthly Limit</span>
-                    <span className="font-semibold text-slate-200 text-sm">
-                      ${(selectedAgent.monthlySpendLimitCents / 100).toFixed(2)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="p-6 border-t border-slate-800 flex justify-end bg-slate-900/50">
-              <button
-                onClick={() => setSelectedAgent(null)}
-                className="px-5 py-2.5 rounded-xl bg-slate-805 text-slate-300 hover:text-white text-xs font-semibold border border-slate-700/50 hover:bg-slate-700 transition-colors cursor-pointer"
-              >
-                Close Agent Inspector
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* ==================== Call Log Detail Modal ==================== */}
       {selectedCall && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
@@ -1225,7 +806,7 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
             </button>
 
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-405">
                 <Phone className="w-6 h-6" />
               </div>
               <div>
@@ -1236,7 +817,7 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
                       selectedCall.status === 'completed'
                         ? 'bg-emerald-950/80 text-emerald-450 border border-emerald-500/20'
                         : selectedCall.status === 'no-answer'
-                        ? 'bg-slate-805 text-slate-400 border border-slate-700'
+                        ? 'bg-slate-800 text-slate-400 border border-slate-700'
                         : 'bg-red-950/80 text-red-400 border border-red-500/20'
                     }`}
                   >
@@ -1249,9 +830,9 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
 
             <div className="space-y-6">
               {/* Audio Recording */}
-              <div className="bg-slate-955/60 p-4 rounded-xl border border-slate-850 flex flex-col sm:flex-row gap-3 items-center justify-between">
+              <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-850 flex flex-col sm:flex-row gap-3 items-center justify-between">
                 <div>
-                  <span className="text-[10px] text-indigo-400 uppercase tracking-widest block font-bold">Call Recording</span>
+                  <span className="text-[10px] text-indigo-405 uppercase tracking-widest block font-bold">Call Recording</span>
                   <span className="text-xs text-slate-400 mt-0.5 block">{selectedCall.agentName}</span>
                 </div>
                 {selectedCall.recordingUrl ? (
@@ -1267,8 +848,8 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
 
               {/* Call Summary & Meta Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-slate-955/60 p-4 rounded-xl border border-slate-850 text-left">
-                  <h5 className="text-[10px] uppercase font-bold tracking-widest text-indigo-400 mb-1.5 flex items-center gap-1">
+                <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-850 text-left">
+                  <h5 className="text-[10px] uppercase font-bold tracking-widest text-indigo-405 mb-1.5 flex items-center gap-1">
                     <Sparkles className="w-3.5 h-3.5" /> <span>Counseling Summary</span>
                   </h5>
                   <p className="text-xs text-slate-300 leading-relaxed font-serif italic">
@@ -1276,29 +857,29 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
                   </p>
                 </div>
 
-                <div className="bg-slate-955/60 p-4 rounded-xl border border-slate-850 text-left grid grid-cols-2 gap-4">
+                <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-850 text-left grid grid-cols-2 gap-4">
                   <div>
-                    <span className="text-[10px] uppercase text-slate-505 block">Agent Name</span>
+                    <span className="text-[10px] uppercase text-slate-500 block">Agent Name</span>
                     <span className="text-xs text-slate-200 font-bold">{selectedCall.agentName}</span>
                   </div>
                   <div>
-                    <span className="text-[10px] uppercase text-slate-505 block">Call Type</span>
+                    <span className="text-[10px] uppercase text-slate-500 block">Call Type</span>
                     <span className="text-xs text-slate-200 font-bold">{selectedCall.callType}</span>
                   </div>
                   <div>
-                    <span className="text-[10px] uppercase text-slate-550 block">To Number</span>
+                    <span className="text-[10px] uppercase text-slate-500 block">To Number</span>
                     <span className="text-xs text-slate-200 font-mono font-bold">{selectedCall.toNumber}</span>
                   </div>
                   <div>
-                    <span className="text-[10px] uppercase text-slate-550 block">From Number</span>
+                    <span className="text-[10px] uppercase text-slate-500 block">From Number</span>
                     <span className="text-xs text-slate-200 font-mono font-bold">{selectedCall.fromNumber}</span>
                   </div>
                   <div>
-                    <span className="text-[10px] uppercase text-slate-550 block">Duration</span>
+                    <span className="text-[10px] uppercase text-slate-500 block">Duration</span>
                     <span className="text-xs text-slate-200 font-bold">{formatDuration(selectedCall.durationSeconds)}</span>
                   </div>
                   <div>
-                    <span className="text-[10px] uppercase text-slate-550 block">Accrued Cost</span>
+                    <span className="text-[10px] uppercase text-slate-500 block">Accrued Cost</span>
                     <span className="text-xs text-slate-200 font-bold">₹{(selectedCall.costCents / 100).toFixed(2)}</span>
                   </div>
                 </div>
@@ -1306,16 +887,16 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
 
               {/* Chat Transcript bubble list */}
               <div className="text-left space-y-2">
-                <h5 className="text-[10px] uppercase font-bold tracking-widest text-indigo-400 flex items-center gap-1.5">
+                <h5 className="text-[10px] uppercase font-bold tracking-widest text-indigo-405 flex items-center gap-1.5">
                   <FileText className="w-3.5 h-3.5" /> <span>Call Transcript Logs</span>
                 </h5>
 
                 {!selectedCall.transcript || selectedCall.transcript.length === 0 ? (
-                  <div className="text-center p-6 bg-slate-955/40 border border-slate-850 rounded-xl text-slate-500 text-xs italic">
+                  <div className="text-center p-6 bg-slate-950/40 border border-slate-850 rounded-xl text-slate-500 text-xs italic">
                     No transcript recorded (e.g. Call unanswered or busy).
                   </div>
                 ) : (
-                  <div className="space-y-3 max-h-[220px] overflow-y-auto p-4 bg-slate-955/60 rounded-2xl border border-slate-850 scrollbar-thin font-sans">
+                  <div className="space-y-3 max-h-[220px] overflow-y-auto p-4 bg-slate-950/60 rounded-2xl border border-slate-850 scrollbar-thin">
                     {selectedCall.transcript.map((msg: any, idx: number) => {
                       const isUser = msg.sender === 'user';
                       return (

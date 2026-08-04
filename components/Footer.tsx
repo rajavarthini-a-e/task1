@@ -57,10 +57,11 @@ export default function Footer() {
           <div className="space-y-3">
             <h4 className="text-sm font-bold text-white uppercase tracking-wider">Platform</h4>
             <ul className="space-y-2 text-xs">
-              <li><a href="#hero" className="hover:text-indigo-400 transition-colors">Overview</a></li>
-              <li><a href="#enroll" className="hover:text-indigo-400 transition-colors">Student Enrollment</a></li>
-              <li><a href="#voice-agent" className="hover:text-indigo-400 transition-colors">AI Voice Agent</a></li>
-              <li><a href="#contact" className="hover:text-indigo-400 transition-colors">Admissions Counseling</a></li>
+              <li><a href="/#hero" className="hover:text-indigo-400 transition-colors">Overview</a></li>
+              <li><a href="/#enroll" className="hover:text-indigo-400 transition-colors">Student Enrollment</a></li>
+              <li><a href="/#voice-agent" className="hover:text-indigo-400 transition-colors">AI Voice Agent</a></li>
+              <li><a href="/#contact" className="hover:text-indigo-400 transition-colors">Admissions Counseling</a></li>
+              <li><a href="/admin" className="text-indigo-400 font-semibold hover:underline">Admin Portal →</a></li>
             </ul>
           </div>
 

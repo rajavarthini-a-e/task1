@@ -169,3 +169,39 @@ export async function getCallLogs(agentId?: number): Promise<CallRecord[]> {
     return [];
   }
 }
+
+export function parseTranscript(rawTranscript: any): CallMessage[] {
+  if (Array.isArray(rawTranscript)) {
+    return rawTranscript.map((t: any) => ({
+      sender: t.sender === 'user' || t.role === 'user' || t.sender === 'caller' ? 'user' : 'assistant',
+      text: t.text || t.content || '',
+    }));
+  }
+
+  if (typeof rawTranscript === 'string') {
+    const lines = rawTranscript.split('\n');
+    const messages: CallMessage[] = [];
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+
+      const match = trimmed.match(/^(agent|assistant|caller|user)\s*:\s*(.*)$/i);
+      if (match) {
+        const role = match[1].toLowerCase();
+        const text = match[2];
+        const sender = (role === 'caller' || role === 'user') ? 'user' : 'assistant';
+        messages.push({ sender, text });
+      } else {
+        if (messages.length > 0) {
+          messages[messages.length - 1].text += '\n' + trimmed;
+        } else {
+          messages.push({ sender: 'assistant', text: trimmed });
+        }
+      }
+    }
+    return messages;
+  }
+
+  return [];
+}

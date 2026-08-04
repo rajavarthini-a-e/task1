@@ -165,8 +165,11 @@ export async function getCallLogs(agentId?: number): Promise<CallRecord[]> {
     }
     return items;
   } catch (err) {
-    console.error('getCallLogs error:', err);
-    return [];
+    console.error('getCallLogs error, using memory fallback:', err);
+    if (agentId !== undefined) {
+      return SEED_CALL_LOGS.filter(item => item.agentId === agentId);
+    }
+    return SEED_CALL_LOGS;
   }
 }
 

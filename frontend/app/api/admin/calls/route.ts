@@ -61,6 +61,10 @@ export async function GET(request: NextRequest) {
     const agentIdStr = searchParams.get('agentId');
     const agentId = agentIdStr ? parseInt(agentIdStr, 10) : undefined;
 
+    // Fallback to environment variable default if query parameter not specified
+    const envAgentId = process.env.SNAPSERVE_AGENT_ID ? parseInt(process.env.SNAPSERVE_AGENT_ID, 10) : undefined;
+    const targetAgentId = agentId !== undefined ? agentId : envAgentId;
+
     const snapserveToken = process.env.SNAPSERVE_API_TOKEN;
 
     if (snapserveToken) {
@@ -124,9 +128,9 @@ export async function GET(request: NextRequest) {
             });
 
             // Filter by agent if specified
-            const filteredCalls = isNaN(agentId as number)
-              ? mappedCalls
-              : mappedCalls.filter((c) => c.agentId === agentId);
+            const filteredCalls = targetAgentId !== undefined && !isNaN(targetAgentId)
+              ? mappedCalls.filter((c) => c.agentId === targetAgentId)
+              : mappedCalls;
 
             return NextResponse.json({
               success: true,
@@ -143,7 +147,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Local JSON fallback
-    const logs = await getCallLogs(isNaN(agentId as number) ? undefined : agentId);
+    const logs = await getCallLogs(targetAgentId !== undefined && !isNaN(targetAgentId) ? targetAgentId : undefined);
 
     return NextResponse.json({
       success: true,

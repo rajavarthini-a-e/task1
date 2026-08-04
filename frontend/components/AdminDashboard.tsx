@@ -50,28 +50,18 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
   const [selectedCallAgent, setSelectedCallAgent] = useState('All');
   const [selectedCallStatus, setSelectedCallStatus] = useState('All');
   const [selectedCall, setSelectedCall] = useState<CallRecord | null>(null);
-
+  const [agents, setAgents] = useState<any[]>([]);
   const [callsError, setCallsError] = useState<string | null>(null);
 
   // Global Loading States
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Fetch all dashboard data
-  const fetchData = async () => {
+  const fetchCallLogs = async (agentId: string) => {
     try {
-      setRefreshing(true);
       setCallsError(null);
-      
-      // 1. Fetch leads
-      const leadsRes = await fetch('/api/admin/leads');
-      const leadsData = await leadsRes.json();
-      if (leadsData.success && Array.isArray(leadsData.leads)) {
-        setLeads(leadsData.leads);
-      }
-
-      // 2. Fetch call logs
-      const callsRes = await fetch('/api/admin/calls');
+      const query = agentId !== 'All' ? `?agentId=${agentId}` : '';
+      const callsRes = await fetch(`/api/admin/calls${query}`);
       const callsData = await callsRes.json();
       if (callsData.success && Array.isArray(callsData.calls)) {
         setCalls(callsData.calls);
@@ -80,8 +70,34 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
         setCallsError(callsData.error || 'Failed to retrieve call logs.');
       }
     } catch (err: any) {
-      console.error('Error fetching dashboard data:', err);
+      console.error('Error fetching call logs:', err);
       setCallsError(err?.message || 'A network error occurred while loading call logs.');
+    }
+  };
+
+  // Fetch all dashboard data
+  const fetchData = async () => {
+    try {
+      setRefreshing(true);
+      
+      // 1. Fetch leads
+      const leadsRes = await fetch('/api/admin/leads');
+      const leadsData = await leadsRes.json();
+      if (leadsData.success && Array.isArray(leadsData.leads)) {
+        setLeads(leadsData.leads);
+      }
+
+      // 2. Fetch agents
+      const agentsRes = await fetch('/api/admin/agents');
+      const agentsData = await agentsRes.json();
+      if (agentsData.success && Array.isArray(agentsData.agents)) {
+        setAgents(agentsData.agents);
+      }
+
+      // 3. Fetch call logs
+      await fetchCallLogs(selectedCallAgent);
+    } catch (err: any) {
+      console.error('Error fetching dashboard data:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -91,6 +107,13 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Fetch call logs when selected agent changes
+  useEffect(() => {
+    if (!loading) {
+      fetchCallLogs(selectedCallAgent);
+    }
+  }, [selectedCallAgent]);
 
   // ==================== Leads Filter Logic ====================
   const filteredLeads = leads.filter((lead) => {
@@ -155,7 +178,7 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
       call.callId.toLowerCase().includes(callSearchQuery.toLowerCase()) ||
       call.agentName.toLowerCase().includes(callSearchQuery.toLowerCase());
 
-    const matchesAgent = selectedCallAgent === 'All' || call.agentName === selectedCallAgent;
+    const matchesAgent = selectedCallAgent === 'All' || String(call.agentId) === selectedCallAgent;
     const matchesStatus = selectedCallStatus === 'All' || call.status === selectedCallStatus;
 
     return matchesSearch && matchesAgent && matchesStatus;
@@ -176,8 +199,7 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
     return m > 0 ? `${m}m ${s}s` : `${s}s`;
   };
 
-  // Unique Agent Names in Logs
-  const uniqueAgents = Array.from(new Set(calls.map((c) => c.agentName).filter(Boolean)));
+
 
   return (
     <div className="min-h-screen bg-slate-950 text-white pb-16">
@@ -497,9 +519,9 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
                     className="w-full sm:w-auto bg-slate-950 border border-slate-800 rounded-xl text-white text-sm py-2.5 px-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                   >
                     <option value="All">All Agents</option>
-                    {uniqueAgents.map((agentName) => (
-                      <option key={agentName} value={agentName}>
-                        {agentName}
+                    {agents.map((agent) => (
+                      <option key={agent.id} value={agent.id}>
+                        {agent.name}
                       </option>
                     ))}
                   </select>

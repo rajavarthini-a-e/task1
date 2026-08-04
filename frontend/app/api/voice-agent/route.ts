@@ -95,8 +95,10 @@ export async function POST(request: NextRequest) {
 
       await appendCallLog({
         agentId: 101, // default counselor agent
+        agentName: 'EduAI Admissions Assistant',
         toNumber: phone || 'Unknown',
         fromNumber: 'AI Voice Counselor',
+        callType: 'Outbound',
         status: statusStr,
         durationSeconds: 120, // default counseling call duration
         costCents: 18,

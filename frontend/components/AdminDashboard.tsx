@@ -5,10 +5,8 @@ import {
   Users,
   Search,
   Filter,
-  Download,
   LogOut,
   RefreshCw,
-  BookOpen,
   GraduationCap,
   Sparkles,
   Phone,
@@ -22,15 +20,12 @@ import {
   Award,
   Clock,
   Database,
-  ExternalLink,
-  Bot,
-  Sliders,
-  Volume2,
-  Activity,
   FileText,
+  AlertTriangle,
+  Activity,
+  Download,
 } from 'lucide-react';
 import { EnrollmentRecord } from '../lib/googleSheets';
-import { SnapServeAgent } from '../app/api/admin/agents/route';
 import { CallRecord } from '../lib/callLogs';
 
 interface AdminDashboardProps {
@@ -40,7 +35,7 @@ interface AdminDashboardProps {
 
 export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
   // Navigation State
-  const [activeTab, setActiveTab] = useState<'leads' | 'agents'>('leads');
+  const [activeTab, setActiveTab] = useState<'leads' | 'calls'>('leads');
 
   // Leads Tab States
   const [leads, setLeads] = useState<EnrollmentRecord[]>([]);
@@ -48,13 +43,12 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
   const [selectedLead, setSelectedLead] = useState<EnrollmentRecord | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Agents Tab States
-  const [agents, setAgents] = useState<SnapServeAgent[]>([]);
+  // Call Logs Tab States
   const [calls, setCalls] = useState<CallRecord[]>([]);
-  const [selectedAgent, setSelectedAgent] = useState<SnapServeAgent | null>(null);
-  const [agentSearchQuery, setAgentSearchQuery] = useState('');
-  const [selectedAgentStatus, setSelectedAgentStatus] = useState('All');
-  const [agentDetailsTab, setAgentDetailsTab] = useState<'config' | 'calls'>('config');
+  const [callsSource, setCallsSource] = useState<'live' | 'mock'>('mock');
+  const [callSearchQuery, setCallSearchQuery] = useState('');
+  const [selectedCallAgent, setSelectedCallAgent] = useState('All');
+  const [selectedCallStatus, setSelectedCallStatus] = useState('All');
   const [selectedCall, setSelectedCall] = useState<CallRecord | null>(null);
 
   // Global Loading States
@@ -73,18 +67,12 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
         setLeads(leadsData.leads);
       }
 
-      // 2. Fetch agents
-      const agentsRes = await fetch('/api/admin/agents');
-      const agentsData = await agentsRes.json();
-      if (agentsData.success && Array.isArray(agentsData.agents)) {
-        setAgents(agentsData.agents);
-      }
-
-      // 3. Fetch call logs
+      // 2. Fetch call logs
       const callsRes = await fetch('/api/admin/calls');
       const callsData = await callsRes.json();
       if (callsData.success && Array.isArray(callsData.calls)) {
         setCalls(callsData.calls);
+        setCallsSource(callsData.source || 'mock');
       }
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
@@ -153,20 +141,37 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
     document.body.removeChild(link);
   };
 
-  // ==================== Agents Filter Logic ====================
-  const filteredAgents = agents.filter((agent) => {
+  // ==================== Call Logs Filter Logic ====================
+  const filteredCalls = calls.filter((call) => {
     const matchesSearch =
-      agent.name.toLowerCase().includes(agentSearchQuery.toLowerCase()) ||
-      agent.description.toLowerCase().includes(agentSearchQuery.toLowerCase()) ||
-      agent.llmModel.toLowerCase().includes(agentSearchQuery.toLowerCase()) ||
-      agent.ttsVoice.toLowerCase().includes(agentSearchQuery.toLowerCase());
+      call.toNumber.includes(callSearchQuery) ||
+      call.fromNumber.includes(callSearchQuery) ||
+      call.callId.toLowerCase().includes(callSearchQuery.toLowerCase()) ||
+      call.agentName.toLowerCase().includes(callSearchQuery.toLowerCase());
 
-    const matchesStatus = selectedAgentStatus === 'All' || agent.status === selectedAgentStatus;
+    const matchesAgent = selectedCallAgent === 'All' || call.agentName === selectedCallAgent;
+    const matchesStatus = selectedCallStatus === 'All' || call.status === selectedCallStatus;
 
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesAgent && matchesStatus;
   });
 
-  const agentCalls = selectedAgent ? calls.filter((c) => c.agentId === selectedAgent.id) : [];
+  // Calculate Call Metrics
+  const totalCalls = calls.length;
+  const completedCalls = calls.filter((c) => c.status === 'completed').length;
+  const failedCalls = calls.filter((c) => c.status === 'failed' || c.status === 'busy').length;
+  
+  const avgSeconds = Math.round(
+    calls.reduce((sum, c) => sum + c.durationSeconds, 0) / (calls.length || 1)
+  );
+
+  const formatDuration = (totalSeconds: number) => {
+    const m = Math.floor(totalSeconds / 60);
+    const s = totalSeconds % 60;
+    return m > 0 ? `${m}m ${s}s` : `${s}s`;
+  };
+
+  // Unique Agent Names in Logs
+  const uniqueAgents = Array.from(new Set(calls.map((c) => c.agentName).filter(Boolean)));
 
   return (
     <div className="min-h-screen bg-slate-950 text-white pb-16">
@@ -210,10 +215,10 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-8 animate-fadeIn">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-8 animate-fadeIn text-left">
         
         {/* Navigation Tabs */}
-        <div className="flex border-b border-slate-850 gap-2">
+        <div className="flex border-b border-slate-800 gap-2">
           <button
             onClick={() => setActiveTab('leads')}
             className={`pb-4 px-6 text-sm font-semibold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
@@ -224,21 +229,41 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
           >
             <Users className="w-4.5 h-4.5" />
             <span>Student Leads</span>
-            <span className="text-xs bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full ml-1 font-medium">{leads.length}</span>
+            <span className="text-xs bg-slate-805 text-slate-400 px-2 py-0.5 rounded-full ml-1 font-medium">{leads.length}</span>
           </button>
           <button
-            onClick={() => setActiveTab('agents')}
+            onClick={() => setActiveTab('calls')}
             className={`pb-4 px-6 text-sm font-semibold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
-              activeTab === 'agents'
+              activeTab === 'calls'
                 ? 'border-indigo-500 text-indigo-400 font-bold'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
-            <Bot className="w-4.5 h-4.5" />
-            <span>AI Voice Agents</span>
-            <span className="text-xs bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full ml-1 font-medium">{agents.length}</span>
+            <Phone className="w-4.5 h-4.5" />
+            <span>Call Logs</span>
+            <span className="text-xs bg-slate-805 text-slate-400 px-2 py-0.5 rounded-full ml-1 font-medium">{calls.length}</span>
           </button>
         </div>
+
+        {/* Vercel Environment Variables warning banner if in fallback mode */}
+        {activeTab === 'calls' && callsSource === 'mock' && (
+          <div className="bg-amber-950/40 border border-amber-500/20 rounded-2xl p-5 text-amber-300 text-xs sm:text-sm flex flex-col sm:flex-row gap-3 sm:items-center justify-between backdrop-blur-sm">
+            <div className="flex items-start sm:items-center gap-2.5">
+              <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5 sm:mt-0" />
+              <span>
+                <strong>Demo Mode Active:</strong> Showing seeded mock data. To view real-time call logs from SnapServe, add the <strong><code>SNAPSERVE_API_TOKEN</code></strong> environment variable to your project settings.
+              </span>
+            </div>
+            <a 
+              href="https://vercel.com" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-xs font-semibold border border-amber-500/30 transition-all w-fit"
+            >
+              Configure Vercel
+            </a>
+          </div>
+        )}
 
         {/* Tab Specific KPI Cards */}
         {activeTab === 'leads' ? (
@@ -307,66 +332,60 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
             </div>
           </div>
         ) : (
-          /* AGENTS METRICS */
+          /* CALL LOGS METRICS */
           <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
             <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 backdrop-blur-sm relative overflow-hidden">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Total Agents</p>
-                  <h3 className="text-3xl font-extrabold text-white mt-1">{agents.length}</h3>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Total Calls</p>
+                  <h3 className="text-3xl font-extrabold text-white mt-1">{totalCalls}</h3>
                 </div>
                 <div className="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
-                  <Bot className="w-6 h-6" />
+                  <Phone className="w-6 h-6" />
                 </div>
               </div>
               <div className="mt-3 flex items-center text-xs text-indigo-400 font-medium">
-                <Activity className="w-3.5 h-3.5 mr-1" /> Configured SnapServe agents
+                <Activity className="w-3.5 h-3.5 mr-1" /> Total outbound & inbound calls
               </div>
             </div>
 
             <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 backdrop-blur-sm relative overflow-hidden">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Active Agents</p>
-                  <h3 className="text-3xl font-extrabold text-emerald-400 mt-1">
-                    {agents.filter((a) => a.status === 'active').length}
-                  </h3>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Completed</p>
+                  <h3 className="text-3xl font-extrabold text-emerald-400 mt-1">{completedCalls}</h3>
                 </div>
                 <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
                   <CheckCircle2 className="w-6 h-6" />
                 </div>
               </div>
-              <div className="mt-3 text-xs text-slate-400">Online and calling ready</div>
+              <div className="mt-3 text-xs text-slate-400">Uninterrupted conversations</div>
             </div>
 
             <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 backdrop-blur-sm relative overflow-hidden">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Logged Calls</p>
-                  <h3 className="text-3xl font-extrabold text-white mt-1">{calls.length}</h3>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Failed / Busy</p>
+                  <h3 className="text-3xl font-extrabold text-red-400 mt-1">{failedCalls}</h3>
                 </div>
-                <div className="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
-                  <Phone className="w-6 h-6" />
+                <div className="w-12 h-12 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400">
+                  <AlertTriangle className="w-6 h-6" />
                 </div>
               </div>
-              <div className="mt-3 text-xs text-slate-400 flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5 text-purple-400" /> Avg: {Math.round(calls.reduce((sum, c) => sum + c.durationSeconds, 0) / (calls.length || 1))}s duration
-              </div>
+              <div className="mt-3 text-xs text-slate-400">Busy lines, fails, unanswered</div>
             </div>
 
             <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 backdrop-blur-sm relative overflow-hidden">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Success Rate</p>
-                  <h3 className="text-3xl font-extrabold text-blue-400 mt-1">
-                    {Math.round((calls.filter((c) => c.status === 'completed').length / (calls.length || 1)) * 100)}%
-                  </h3>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Avg Duration</p>
+                  <h3 className="text-2xl font-extrabold text-blue-405 mt-2">{formatDuration(avgSeconds)}</h3>
                 </div>
                 <div className="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
-                  <TrendingUp className="w-6 h-6" />
+                  <Clock className="w-6 h-6" />
                 </div>
               </div>
-              <div className="mt-3 text-xs text-slate-400">Completed counseling calls</div>
+              <div className="mt-3 text-xs text-slate-400">Average conversation time</div>
             </div>
           </div>
         )}
@@ -427,21 +446,21 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
             </div>
           </div>
         ) : (
-          /* AGENTS CONTROLS */
+          /* CALL LOGS CONTROLS */
           <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 flex flex-col md:flex-row gap-4 items-center justify-between shadow-lg">
             {/* Search Box */}
             <div className="relative w-full md:w-80">
               <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
-                value={agentSearchQuery}
-                onChange={(e) => setAgentSearchQuery(e.target.value)}
-                placeholder="Search name, description, model, voice..."
+                value={callSearchQuery}
+                onChange={(e) => setCallSearchQuery(e.target.value)}
+                placeholder="Search number, agent, ID..."
                 className="w-full pl-10 pr-4 py-2.5 bg-slate-950/80 border border-slate-800 rounded-xl text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
               />
-              {agentSearchQuery && (
+              {callSearchQuery && (
                 <button
-                  onClick={() => setAgentSearchQuery('')}
+                  onClick={() => setCallSearchQuery('')}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs"
                 >
                   <X className="w-4 h-4" />
@@ -450,18 +469,40 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
             </div>
 
             {/* Filter Dropdowns */}
-            <div className="flex items-center gap-3 w-full md:w-auto">
-              <div className="relative flex-1 md:flex-none">
+            <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 w-full md:w-auto">
+              {/* Agent Filter */}
+              <div className="relative flex-1 sm:flex-none">
                 <div className="flex items-center gap-2">
-                  <Filter className="w-4 h-4 text-indigo-400" />
+                  <Filter className="w-4 h-4 text-indigo-400 font-semibold" />
                   <select
-                    value={selectedAgentStatus}
-                    onChange={(e) => setSelectedAgentStatus(e.target.value)}
-                    className="bg-slate-950 border border-slate-800 rounded-xl text-white text-sm py-2.5 px-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                    value={selectedCallAgent}
+                    onChange={(e) => setSelectedCallAgent(e.target.value)}
+                    className="w-full sm:w-auto bg-slate-950 border border-slate-800 rounded-xl text-white text-sm py-2.5 px-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                  >
+                    <option value="All">All Agents</option>
+                    {uniqueAgents.map((agentName) => (
+                      <option key={agentName} value={agentName}>
+                        {agentName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Status Filter */}
+              <div className="relative flex-1 sm:flex-none">
+                <div className="flex items-center gap-2">
+                  <Filter className="w-4 h-4 text-indigo-400 font-semibold" />
+                  <select
+                    value={selectedCallStatus}
+                    onChange={(e) => setSelectedCallStatus(e.target.value)}
+                    className="w-full sm:w-auto bg-slate-950 border border-slate-800 rounded-xl text-white text-sm py-2.5 px-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                   >
                     <option value="All">All Statuses</option>
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
+                    <option value="completed">Completed</option>
+                    <option value="failed">Failed</option>
+                    <option value="busy">Busy</option>
+                    <option value="no-answer">No Answer</option>
                   </select>
                 </div>
               </div>
@@ -570,18 +611,19 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
             )}
           </div>
         ) : (
-          /* AGENTS DATA TABLE */
+          /* CALL LOGS DATA TABLE */
           <div className="bg-slate-900/80 border border-slate-800 rounded-2xl shadow-xl overflow-hidden animate-fadeIn">
             <div className="p-5 border-b border-slate-800 flex items-center justify-between">
               <h2 className="text-base font-bold text-white flex items-center gap-2">
-                <Bot className="w-5 h-5 text-indigo-400" />
-                SnapServe AI Agents ({filteredAgents.length})
+                <FileSpreadsheet className="w-5 h-5 text-indigo-400" />
+                Call Interactions List ({filteredCalls.length})
               </h2>
-              {agentSearchQuery || selectedAgentStatus !== 'All' ? (
+              {callSearchQuery || selectedCallAgent !== 'All' || selectedCallStatus !== 'All' ? (
                 <button
                   onClick={() => {
-                    setAgentSearchQuery('');
-                    setSelectedAgentStatus('All');
+                    setCallSearchQuery('');
+                    setSelectedCallAgent('All');
+                    setSelectedCallStatus('All');
                   }}
                   className="text-xs text-indigo-400 hover:underline"
                 >
@@ -593,88 +635,82 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
             {loading ? (
               <div className="p-12 text-center text-slate-400 space-y-3">
                 <RefreshCw className="w-8 h-8 animate-spin mx-auto text-indigo-400" />
-                <p className="text-sm">Loading agents...</p>
+                <p className="text-sm">Loading call logs...</p>
               </div>
-            ) : filteredAgents.length === 0 ? (
+            ) : filteredCalls.length === 0 ? (
               <div className="p-12 text-center text-slate-400 space-y-3">
-                <Search className="w-8 h-8 mx-auto text-slate-600" />
-                <p className="text-base font-semibold text-slate-300">No matching AI agents found</p>
-                <p className="text-xs text-slate-500">Try adjusting your search query or status filters.</p>
+                <Phone className="w-8 h-8 mx-auto text-slate-650" />
+                <p className="text-base font-semibold text-slate-300">No call logs found</p>
+                <p className="text-xs text-slate-550">Try modifying your search or dropdown filters.</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-slate-950/60 text-slate-400 text-xs uppercase tracking-wider border-b border-slate-800">
-                      <th className="py-4 px-6 font-semibold">Agent Name</th>
-                      <th className="py-4 px-6 font-semibold">LLM Configuration</th>
-                      <th className="py-4 px-6 font-semibold">TTS Voice / Model</th>
-                      <th className="py-4 px-6 font-semibold">Total Calls</th>
+                      <th className="py-4 px-6 font-semibold">Date & Time</th>
+                      <th className="py-4 px-6 font-semibold">Call ID</th>
+                      <th className="py-4 px-6 font-semibold">Agent</th>
+                      <th className="py-4 px-6 font-semibold">From</th>
+                      <th className="py-4 px-6 font-semibold">To</th>
+                      <th className="py-4 px-6 font-semibold">Call Type</th>
                       <th className="py-4 px-6 font-semibold">Status</th>
+                      <th className="py-4 px-6 font-semibold">Duration</th>
+                      <th className="py-4 px-6 font-semibold">Cost</th>
                       <th className="py-4 px-6 text-right font-semibold">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/60 text-sm">
-                    {filteredAgents.map((agent) => (
+                    {filteredCalls.map((call) => (
                       <tr
-                        key={agent.id}
+                        key={call.callId}
                         className="hover:bg-slate-800/40 transition-colors group cursor-pointer"
-                        onClick={() => {
-                          setSelectedAgent(agent);
-                          setAgentDetailsTab('config');
-                          setSelectedCall(null);
-                        }}
+                        onClick={() => setSelectedCall(call)}
                       >
-                        <td className="py-4 px-6">
-                          <div className="font-semibold text-white group-hover:text-indigo-300 transition-colors">
-                            {agent.name}
-                          </div>
-                          <div className="text-xs text-slate-400 truncate max-w-[280px]">
-                            {agent.description}
-                          </div>
+                        <td className="py-4 px-6 text-xs text-slate-305 whitespace-nowrap">
+                          {call.timestamp}
                         </td>
-                        <td className="py-4 px-6">
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-indigo-950/40 text-indigo-300 border border-indigo-500/20 uppercase">
-                            {agent.llmProvider}
-                          </span>
-                          <span className="text-xs text-slate-300 ml-2 font-mono">
-                            {agent.llmModel}
-                          </span>
+                        <td className="py-4 px-6 text-xs text-slate-400 font-mono">
+                          {call.callId.length > 12 ? `${call.callId.substring(0, 10)}...` : call.callId}
                         </td>
-                        <td className="py-4 px-6">
-                          <div className="text-xs font-medium text-slate-200">
-                            Voice: <span className="text-indigo-400 font-bold">{agent.ttsVoice}</span>
-                          </div>
-                          <div className="text-[10px] text-slate-400 font-mono">
-                            Model: {agent.ttsModel}
-                          </div>
+                        <td className="py-4 px-6 font-semibold text-white group-hover:text-indigo-305 transition-colors">
+                          {call.agentName}
                         </td>
-                        <td className="py-4 px-6 text-slate-300 font-medium whitespace-nowrap">
-                          <span className="flex items-center gap-1.5">
-                            <Phone className="w-3.5 h-3.5 text-indigo-400" />
-                            {calls.filter((c) => c.agentId === agent.id).length} calls
-                          </span>
+                        <td className="py-4 px-6 text-xs text-slate-300 font-mono">
+                          {call.fromNumber}
+                        </td>
+                        <td className="py-4 px-6 text-xs text-slate-300 font-mono">
+                          {call.toNumber}
+                        </td>
+                        <td className="py-4 px-6 text-xs text-slate-400 font-medium">
+                          {call.callType}
                         </td>
                         <td className="py-4 px-6">
                           <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wider ${
-                              agent.status === 'active'
-                                ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-500/30'
-                                : 'bg-slate-900 text-slate-500 border border-slate-800'
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                              call.status === 'completed'
+                                ? 'bg-emerald-950/80 text-emerald-450 border border-emerald-500/20'
+                                : call.status === 'no-answer'
+                                ? 'bg-slate-900 text-slate-500 border border-slate-800'
+                                : 'bg-red-950/80 text-red-400 border border-red-500/20'
                             }`}
                           >
-                            {agent.status}
+                            {call.status}
                           </span>
+                        </td>
+                        <td className="py-4 px-6 text-xs text-slate-300">
+                          {formatDuration(call.durationSeconds)}
+                        </td>
+                        <td className="py-4 px-6 text-xs font-semibold text-slate-200">
+                          ₹{(call.costCents / 100).toFixed(2)}
                         </td>
                         <td className="py-4 px-6 text-right">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              setSelectedAgent(agent);
-                              setAgentDetailsTab('config');
-                              setSelectedCall(null);
+                              setSelectedCall(call);
                             }}
-                            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-indigo-600 text-slate-200 hover:text-white transition-colors inline-flex items-center gap-1 cursor-pointer"
+                            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-805 hover:bg-indigo-600 text-slate-200 hover:text-white transition-all inline-flex items-center gap-1 cursor-pointer"
                           >
                             <span>Inspect</span>
                             <ChevronRight className="w-3.5 h-3.5" />
@@ -693,7 +729,7 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
       {/* ==================== Lead Detail Modal ==================== */}
       {selectedLead && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-xl w-full p-6 shadow-2xl relative animate-fadeIn">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-xl w-full p-6 shadow-2xl relative animate-fadeIn text-left">
             <button
               onClick={() => setSelectedLead(null)}
               className="absolute top-5 right-5 text-slate-400 hover:text-white p-1 rounded-lg bg-slate-800/50 cursor-pointer"
@@ -711,8 +747,8 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
               </div>
             </div>
 
-            <div className="space-y-4 text-sm">
-              <div className="grid grid-cols-2 gap-4 bg-slate-950/60 p-4 rounded-xl border border-slate-800">
+            <div className="space-y-4 text-sm font-sans">
+              <div className="grid grid-cols-2 gap-4 bg-slate-950/60 p-4 rounded-xl border border-slate-805">
                 <div>
                   <span className="text-xs text-slate-400 uppercase tracking-wider block mb-1">Email Address</span>
                   <a href={`mailto:${selectedLead.email}`} className="text-slate-200 hover:text-indigo-400 flex items-center gap-1.5 font-medium">
@@ -729,12 +765,12 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
                 </div>
               </div>
 
-              <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800">
+              <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-850">
                 <span className="text-xs text-slate-400 uppercase tracking-wider block mb-1">Highest Qualification</span>
                 <span className="text-slate-200 font-medium">{selectedLead.qualification}</span>
               </div>
 
-              <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800">
+              <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-850">
                 <span className="text-xs text-slate-400 uppercase tracking-wider block mb-1">Learning Goals / Notes</span>
                 <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap mt-1">
                   {selectedLead.learningGoal || 'No additional details specified.'}
@@ -746,10 +782,10 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
               </div>
             </div>
 
-            <div className="mt-6 flex justify-end gap-3">
+            <div className="mt-6 flex justify-end gap-3 font-sans">
               <button
                 onClick={() => setSelectedLead(null)}
-                className="px-5 py-2.5 rounded-xl bg-slate-800 text-slate-300 hover:text-white text-xs font-semibold transition-colors cursor-pointer"
+                className="px-5 py-2.5 rounded-xl bg-slate-805 text-slate-300 hover:text-white text-xs font-semibold transition-all cursor-pointer"
               >
                 Close
               </button>
@@ -758,363 +794,144 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
         </div>
       )}
 
-      {/* ==================== Agent Detail & Call Logs Modal ==================== */}
-      {selectedAgent && (
+      {/* ==================== Call Log Detail Modal ==================== */}
+      {selectedCall && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-5xl w-full h-[85vh] flex flex-col shadow-2xl relative animate-fadeIn overflow-hidden">
-            
-            {/* Modal Header */}
-            <div className="p-6 border-b border-slate-800 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
-                  <Bot className="w-6 h-6" />
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-2xl w-full p-6 shadow-2xl relative animate-fadeIn text-left">
+            <button
+              onClick={() => setSelectedCall(null)}
+              className="absolute top-5 right-5 text-slate-400 hover:text-white p-1 rounded-lg bg-slate-800/50 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+                <Phone className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                  Call Log Details
+                  <span
+                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                      selectedCall.status === 'completed'
+                        ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-500/20'
+                        : selectedCall.status === 'no-answer'
+                        ? 'bg-slate-800 text-slate-400 border border-slate-705'
+                        : 'bg-red-950/80 text-red-400 border border-red-500/20'
+                    }`}
+                  >
+                    {selectedCall.status}
+                  </span>
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">Call ID: {selectedCall.callId}</p>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              {/* Audio Recording */}
+              <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-850 flex flex-col sm:flex-row gap-3 items-center justify-between">
+                <div>
+                  <span className="text-[10px] text-indigo-400 uppercase tracking-widest block font-bold">Call Recording</span>
+                  <span className="text-xs text-slate-400 mt-0.5 block">{selectedCall.agentName}</span>
                 </div>
-                <div className="text-left">
-                  <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                    {selectedAgent.name}
-                    <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                        selectedAgent.status === 'active'
-                          ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-500/30'
-                          : 'bg-slate-800 text-slate-500 border border-slate-700'
-                      }`}
-                    >
-                      {selectedAgent.status}
-                    </span>
-                  </h3>
-                  <p className="text-xs text-slate-400 mt-0.5">{selectedAgent.description}</p>
+                {selectedCall.recordingUrl ? (
+                  <audio
+                    src={selectedCall.recordingUrl}
+                    controls
+                    className="w-full sm:w-auto h-9 accent-indigo-500 bg-slate-900 rounded-xl"
+                  />
+                ) : (
+                  <span className="text-xs text-slate-500 italic">No recording available (e.g. Call unanswered)</span>
+                )}
+              </div>
+
+              {/* Call Summary & Meta Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-850 text-left">
+                  <h5 className="text-[10px] uppercase font-bold tracking-widest text-indigo-400 mb-1.5 flex items-center gap-1">
+                    <Sparkles className="w-3.5 h-3.5" /> <span>Counseling Summary</span>
+                  </h5>
+                  <p className="text-xs text-slate-300 leading-relaxed font-serif italic">
+                    "{selectedCall.summary || 'No summary available.'}"
+                  </p>
+                </div>
+
+                <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-850 text-left grid grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-[10px] uppercase text-slate-500 block">Agent Name</span>
+                    <span className="text-xs text-slate-200 font-bold">{selectedCall.agentName}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase text-slate-500 block">Call Type</span>
+                    <span className="text-xs text-slate-200 font-bold">{selectedCall.callType}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase text-slate-500 block">To Number</span>
+                    <span className="text-xs text-slate-200 font-mono font-bold">{selectedCall.toNumber}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase text-slate-500 block">From Number</span>
+                    <span className="text-xs text-slate-200 font-mono font-bold">{selectedCall.fromNumber}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase text-slate-500 block">Duration</span>
+                    <span className="text-xs text-slate-200 font-bold">{formatDuration(selectedCall.durationSeconds)}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase text-slate-500 block">Accrued Cost</span>
+                    <span className="text-xs text-slate-200 font-bold">₹{(selectedCall.costCents / 100).toFixed(2)}</span>
+                  </div>
                 </div>
               </div>
 
-              <button
-                onClick={() => setSelectedAgent(null)}
-                className="text-slate-400 hover:text-white p-1.5 rounded-xl bg-slate-800/50 border border-slate-700/50 hover:bg-slate-800 transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+              {/* Chat Transcript bubble list */}
+              <div className="text-left space-y-2">
+                <h5 className="text-[10px] uppercase font-bold tracking-widest text-indigo-400 flex items-center gap-1.5">
+                  <FileText className="w-3.5 h-3.5" /> <span>Call Transcript Logs</span>
+                </h5>
 
-            {/* Modal Sub-Tabs */}
-            <div className="px-6 border-b border-slate-800 flex gap-4 bg-slate-950/20">
-              <button
-                onClick={() => setAgentDetailsTab('config')}
-                className={`py-3 text-sm font-semibold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
-                  agentDetailsTab === 'config'
-                    ? 'border-indigo-500 text-indigo-400 font-bold'
-                    : 'border-transparent text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <Sliders className="w-4 h-4" />
-                <span>Agent Configuration</span>
-              </button>
-              <button
-                onClick={() => {
-                  setAgentDetailsTab('calls');
-                  const firstCall = calls.find((c) => c.agentId === selectedAgent.id);
-                  if (firstCall && !selectedCall) {
-                    setSelectedCall(firstCall);
-                  }
-                }}
-                className={`py-3 text-sm font-semibold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
-                  agentDetailsTab === 'calls'
-                    ? 'border-indigo-500 text-indigo-400 font-bold'
-                    : 'border-transparent text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <Activity className="w-4 h-4" />
-                <span>Call History & Transcripts ({agentCalls.length})</span>
-              </button>
-            </div>
-
-            {/* Modal Body Container */}
-            <div className="flex-1 overflow-hidden min-h-0">
-              {agentDetailsTab === 'config' ? (
-                /* CONFIGURATION TAB */
-                <div className="h-full overflow-y-auto p-6 space-y-6 text-left">
-                  {/* System Prompt */}
-                  <div className="bg-slate-950/60 p-5 rounded-2xl border border-slate-800/80 space-y-3">
-                    <h4 className="text-xs uppercase tracking-wider text-indigo-400 font-semibold flex items-center gap-1.5">
-                      <FileText className="w-4 h-4" /> <span>System Prompt & Identity</span>
-                    </h4>
-                    <p className="text-sm font-semibold text-slate-200 mt-1">Greeting Message:</p>
-                    <div className="bg-indigo-950/20 border border-indigo-500/20 p-3.5 rounded-xl text-slate-300 text-sm font-serif italic">
-                      "{selectedAgent.greetingMessage}"
-                    </div>
-                    <p className="text-sm font-semibold text-slate-200 mt-3">Prompt Content:</p>
-                    <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap font-mono bg-slate-900 p-4 rounded-xl border border-slate-800/80 max-h-56 overflow-y-auto">
-                      {selectedAgent.systemPrompt}
-                    </p>
+                {!selectedCall.transcript || selectedCall.transcript.length === 0 ? (
+                  <div className="text-center p-6 bg-slate-950/40 border border-slate-850 rounded-xl text-slate-500 text-xs italic">
+                    No transcript recorded (e.g. Call unanswered or busy).
                   </div>
-
-                  {/* Core Settings Grid */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                    {/* LLM */}
-                    <div className="bg-slate-950/60 p-5 rounded-2xl border border-slate-800/80 space-y-3">
-                      <h4 className="text-xs uppercase tracking-wider text-indigo-400 font-semibold flex items-center gap-1.5">
-                        <Activity className="w-4 h-4" /> <span>Language Model (LLM)</span>
-                      </h4>
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-slate-400">Provider:</span>
-                          <span className="font-semibold text-white capitalize">{selectedAgent.llmProvider}</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-slate-400">Model Name:</span>
-                          <span className="font-mono text-indigo-300 text-xs">{selectedAgent.llmModel}</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-slate-400">Temperature:</span>
-                          <span className="font-semibold text-slate-200">{selectedAgent.temperature}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* TTS */}
-                    <div className="bg-slate-950/60 p-5 rounded-2xl border border-slate-800/80 space-y-3">
-                      <h4 className="text-xs uppercase tracking-wider text-indigo-400 font-semibold flex items-center gap-1.5">
-                        <Volume2 className="w-4 h-4" /> <span>Text to Speech (TTS)</span>
-                      </h4>
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-slate-400">Provider:</span>
-                          <span className="font-semibold text-white capitalize">{selectedAgent.ttsProvider}</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-slate-400">Voice ID:</span>
-                          <span className="font-semibold text-indigo-300 text-xs font-mono">{selectedAgent.ttsVoice}</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-slate-400">Model ID:</span>
-                          <span className="text-slate-300 text-xs font-mono">{selectedAgent.ttsModel}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* ASR */}
-                    <div className="bg-slate-950/60 p-5 rounded-2xl border border-slate-800/80 space-y-3">
-                      <h4 className="text-xs uppercase tracking-wider text-indigo-400 font-semibold flex items-center gap-1.5">
-                        <Phone className="w-4 h-4" /> <span>Speech to Text (ASR)</span>
-                      </h4>
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-slate-400">Provider:</span>
-                          <span className="font-semibold text-white capitalize">{selectedAgent.asrProvider}</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-slate-400">Model Name:</span>
-                          <span className="font-mono text-indigo-300 text-xs">{selectedAgent.asrModel}</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-slate-400">Language Code:</span>
-                          <span className="font-semibold text-slate-200">{selectedAgent.asrLanguage}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Telephony and Constraints */}
-                  <div className="bg-slate-950/60 p-5 rounded-2xl border border-slate-800/80 space-y-3">
-                    <h4 className="text-xs uppercase tracking-wider text-indigo-400 font-semibold flex items-center gap-1.5">
-                      <Database className="w-4 h-4" /> <span>Telephony, Budget & Limits</span>
-                    </h4>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-6 pt-2">
-                      <div>
-                        <span className="text-xs text-slate-400 block">Inbound Phone Identifier</span>
-                        <span className="font-semibold text-slate-200 text-sm">
-                          {selectedAgent.inboundPhoneNumberId || 'None (Disabled)'}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-xs text-slate-400 block">Outbound Phone Identifier</span>
-                        <span className="font-semibold text-slate-200 text-sm">
-                          {selectedAgent.outboundPhoneNumberId || 'None (Disabled)'}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-xs text-slate-400 block">Max Concurrent Calls</span>
-                        <span className="font-semibold text-slate-200 text-sm">{selectedAgent.maxConcurrentCalls} channels</span>
-                      </div>
-                      <div>
-                        <span className="text-xs text-slate-400 block">Max Call Duration</span>
-                        <span className="font-semibold text-slate-200 text-sm">{selectedAgent.maxDuration} seconds</span>
-                      </div>
-                      <div>
-                        <span className="text-xs text-slate-400 block">Silence Timeout</span>
-                        <span className="font-semibold text-slate-200 text-sm">{selectedAgent.silenceTimeoutSeconds} seconds</span>
-                      </div>
-                      <div>
-                        <span className="text-xs text-slate-400 block">Monthly Spend Limit</span>
-                        <span className="font-semibold text-slate-200 text-sm">
-                          ${(selectedAgent.monthlySpendLimitCents / 100).toFixed(2)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                /* CALL HISTORY / LOGS TAB */
-                <div className="h-full flex flex-col md:flex-row min-h-0">
-                  {/* Left Column: Call List */}
-                  <div className="w-full md:w-[320px] border-r border-slate-800 h-full overflow-y-auto flex-shrink-0 bg-slate-950/10">
-                    {agentCalls.length === 0 ? (
-                      <div className="p-12 text-center text-slate-500 text-xs italic">
-                        No call logs recorded for this agent.
-                      </div>
-                    ) : (
-                      <div className="divide-y divide-slate-800/60">
-                        {agentCalls.map((call) => (
+                ) : (
+                  <div className="space-y-3 max-h-[220px] overflow-y-auto p-4 bg-slate-950/60 rounded-2xl border border-slate-850 scrollbar-thin">
+                    {selectedCall.transcript.map((msg: any, idx: number) => {
+                      const isUser = msg.sender === 'user';
+                      return (
+                        <div
+                          key={idx}
+                          className={`flex flex-col max-w-[85%] ${
+                            isUser ? 'ml-auto items-end' : 'mr-auto items-start'
+                          }`}
+                        >
+                          <span className="text-[9px] text-slate-500 uppercase tracking-widest font-bold mb-0.5 px-2">
+                            {isUser ? 'Student' : 'AI Assistant'}
+                          </span>
                           <div
-                            key={call.callId}
-                            onClick={() => setSelectedCall(call)}
-                            className={`p-4 cursor-pointer text-left transition-all ${
-                              selectedCall?.callId === call.callId
-                                ? 'bg-indigo-950/30 border-l-4 border-indigo-500'
-                                : 'hover:bg-slate-800/30 border-l-4 border-transparent'
+                            className={`px-4 py-2 rounded-2xl text-xs leading-relaxed ${
+                              isUser
+                                ? 'bg-indigo-600 text-white rounded-tr-none'
+                                : 'bg-slate-800 text-slate-200 rounded-tl-none border border-slate-750/50'
                             }`}
                           >
-                            <div className="flex justify-between items-center mb-1">
-                              <span className="text-xs text-slate-300 font-mono font-semibold">{call.toNumber}</span>
-                              <span
-                                className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider ${
-                                  call.status === 'completed'
-                                    ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-500/20'
-                                    : call.status === 'no-answer'
-                                    ? 'bg-slate-800 text-slate-400'
-                                    : 'bg-red-950/80 text-red-400 border border-red-500/20'
-                                }`}
-                              >
-                                {call.status}
-                              </span>
-                            </div>
-                            <p className="text-xs text-slate-400 truncate mt-1">
-                              {call.summary || 'No summary generated.'}
-                            </p>
-                            <div className="flex justify-between items-center text-[10px] text-slate-500 mt-2">
-                              <span className="flex items-center gap-1 font-medium">
-                                <Clock className="w-3 h-3 text-indigo-400" />
-                                {call.durationSeconds}s
-                              </span>
-                              <span className="font-mono">{call.timestamp.split(', ')[1] || call.timestamp}</span>
-                            </div>
+                            {msg.text}
                           </div>
-                        ))}
-                      </div>
-                    )}
+                        </div>
+                      );
+                    })}
                   </div>
-
-                  {/* Right Column: Call Details */}
-                  <div className="flex-1 h-full overflow-y-auto p-6 space-y-6 bg-slate-950/30 min-h-0 flex flex-col justify-between">
-                    {selectedCall ? (
-                      <div className="space-y-6 flex-1 overflow-y-auto pr-2">
-                        {/* Audio Player */}
-                        <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex flex-col md:flex-row gap-4 items-center justify-between text-left">
-                          <div>
-                            <span className="text-[10px] text-indigo-400 uppercase tracking-widest block font-bold">Call Recording</span>
-                            <span className="text-xs text-slate-400 font-mono block mt-0.5">{selectedCall.callId}</span>
-                          </div>
-
-                          {selectedCall.recordingUrl ? (
-                            <div className="w-full md:w-auto flex-1 md:max-w-md">
-                              <audio
-                                src={selectedCall.recordingUrl}
-                                controls
-                                className="w-full h-9 accent-indigo-500 bg-slate-950 rounded-xl"
-                              />
-                            </div>
-                          ) : (
-                            <span className="text-xs text-slate-500 italic">Unanswered call - no recording available.</span>
-                          )}
-                        </div>
-
-                        {/* Summary & Stats Cards */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
-                          <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl">
-                            <h5 className="text-[10px] uppercase font-bold tracking-widest text-indigo-400 mb-1.5 flex items-center gap-1">
-                              <Sparkles className="w-3.5 h-3.5" /> <span>Counseling Summary</span>
-                            </h5>
-                            <p className="text-xs text-slate-350 leading-relaxed font-serif italic">
-                              "{selectedCall.summary || 'No summary available.'}"
-                            </p>
-                          </div>
-
-                          <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl grid grid-cols-2 gap-4">
-                            <div>
-                              <span className="text-[10px] uppercase text-slate-500 block">Dialed Number</span>
-                              <span className="text-xs text-slate-200 font-mono font-bold">{selectedCall.toNumber}</span>
-                            </div>
-                            <div>
-                              <span className="text-[10px] uppercase text-slate-500 block">From Number</span>
-                              <span className="text-xs text-slate-200 font-mono font-bold">{selectedCall.fromNumber}</span>
-                            </div>
-                            <div>
-                              <span className="text-[10px] uppercase text-slate-500 block">Call Duration</span>
-                              <span className="text-xs text-slate-200 font-bold">{selectedCall.durationSeconds} seconds</span>
-                            </div>
-                            <div>
-                              <span className="text-[10px] uppercase text-slate-500 block">Accrued Cost</span>
-                              <span className="text-xs text-slate-200 font-bold">${(selectedCall.costCents / 100).toFixed(2)}</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Transcript bubble list */}
-                        <div className="text-left space-y-3">
-                          <h5 className="text-[10px] uppercase font-bold tracking-widest text-indigo-400 flex items-center gap-1.5">
-                            <FileText className="w-3.5 h-3.5" /> <span>Call Transcript Logs</span>
-                          </h5>
-
-                          {!selectedCall.transcript || selectedCall.transcript.length === 0 ? (
-                            <div className="text-center p-8 bg-slate-900 border border-slate-800/80 rounded-xl text-slate-500 text-xs italic">
-                              No audio stream connection or transcript recorded.
-                            </div>
-                          ) : (
-                            <div className="space-y-3 max-h-[300px] overflow-y-auto p-4 bg-slate-950/60 rounded-2xl border border-slate-805/85 scrollbar-thin">
-                              {selectedCall.transcript.map((msg, idx) => {
-                                const isUser = msg.sender === 'user';
-                                return (
-                                  <div
-                                    key={idx}
-                                    className={`flex flex-col max-w-[85%] ${
-                                      isUser ? 'ml-auto items-end' : 'mr-auto items-start'
-                                    }`}
-                                  >
-                                    <span className="text-[9px] text-slate-500 uppercase tracking-widest font-bold mb-0.5 px-2">
-                                      {isUser ? 'Student' : 'AI Assistant'}
-                                    </span>
-                                    <div
-                                      className={`px-4 py-2.5 rounded-2xl text-xs leading-relaxed ${
-                                        isUser
-                                          ? 'bg-indigo-600 text-white rounded-tr-none'
-                                          : 'bg-slate-800 text-slate-200 rounded-tl-none border border-slate-750/50'
-                                      }`}
-                                    >
-                                      {msg.text}
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex-1 flex flex-col items-center justify-center text-slate-500 text-sm space-y-2 p-12">
-                        <Phone className="w-8 h-8 text-slate-700 animate-pulse" />
-                        <p>Select a call log on the left sidebar to inspect details</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
 
-            {/* Modal Footer */}
-            <div className="p-6 border-t border-slate-800 flex justify-end bg-slate-900/50">
+            <div className="mt-6 flex justify-end gap-3">
               <button
-                onClick={() => setSelectedAgent(null)}
-                className="px-5 py-2.5 rounded-xl bg-slate-800 text-slate-300 hover:text-white text-xs font-semibold border border-slate-750/50 hover:bg-slate-700 transition-colors cursor-pointer"
+                onClick={() => setSelectedCall(null)}
+                className="px-5 py-2.5 rounded-xl bg-slate-805 text-slate-350 hover:text-white text-xs font-semibold border border-slate-700/50 hover:bg-slate-700 transition-all cursor-pointer"
               >
-                Close Agent Inspector
+                Close Details
               </button>
             </div>
           </div>

@@ -9,8 +9,10 @@ export interface CallMessage {
 export interface CallRecord {
   callId: string;
   agentId: number;
+  agentName: string;
   toNumber: string;
   fromNumber: string;
+  callType: string;
   status: 'completed' | 'failed' | 'no-answer' | 'busy';
   durationSeconds: number;
   costCents: number;
@@ -27,8 +29,10 @@ const SEED_CALL_LOGS: CallRecord[] = [
   {
     callId: 'call_f12a34b5_1',
     agentId: 101,
+    agentName: 'EduAI Admissions Assistant',
     toNumber: '+1 (555) 019-2834',
     fromNumber: '+1 (555) 987-6543',
+    callType: 'Campaign',
     status: 'completed',
     durationSeconds: 125,
     costCents: 18,
@@ -48,8 +52,10 @@ const SEED_CALL_LOGS: CallRecord[] = [
   {
     callId: 'call_f12a34b5_2',
     agentId: 101,
+    agentName: 'EduAI Admissions Assistant',
     toNumber: '+1 (555) 014-9988',
     fromNumber: '+1 (555) 234-5678',
+    callType: 'Campaign',
     status: 'completed',
     durationSeconds: 92,
     costCents: 12,
@@ -71,8 +77,10 @@ const SEED_CALL_LOGS: CallRecord[] = [
   {
     callId: 'call_f12a34b5_3',
     agentId: 101,
+    agentName: 'EduAI Admissions Assistant',
     toNumber: '+1 (555) 012-3456',
     fromNumber: '+1 (555) 876-5432',
+    callType: 'Inbound',
     status: 'no-answer',
     durationSeconds: 0,
     costCents: 0,
@@ -84,8 +92,10 @@ const SEED_CALL_LOGS: CallRecord[] = [
   {
     callId: 'call_f12a34b5_4',
     agentId: 102,
+    agentName: 'AI Coding Tutor',
     toNumber: '+1 (555) 017-7766',
     fromNumber: '+1 (555) 111-2222',
+    callType: 'Live Call',
     status: 'completed',
     durationSeconds: 180,
     costCents: 25,

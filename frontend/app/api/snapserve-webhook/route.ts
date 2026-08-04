@@ -25,8 +25,10 @@ export async function POST(request: NextRequest) {
 
     await appendCallLog({
       agentId: Number(body.agentId || 101),
+      agentName: body.agentName || 'SnapServe AI Agent',
       toNumber: body.toNumber || body.phone || 'Unknown',
       fromNumber: body.fromNumber || 'Inbound Caller',
+      callType: body.direction === 'outbound' ? (body.campaignId ? 'Campaign' : 'Outbound') : 'Inbound',
       status: body.status || 'completed',
       durationSeconds: duration,
       costCents: cost,

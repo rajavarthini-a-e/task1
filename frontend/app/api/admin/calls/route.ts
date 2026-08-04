@@ -99,11 +99,20 @@ export async function GET(request: NextRequest) {
                   })
                 : 'N/A';
 
+              let callType = 'Live Call';
+              if (call.direction === 'outbound') {
+                callType = call.campaignId ? 'Campaign' : 'Outbound';
+              } else if (call.direction === 'inbound') {
+                callType = 'Inbound';
+              }
+
               return {
                 callId: (call.id || call.executionId || String(Math.random())).toString(),
                 agentId: Number(call.agentId || 0),
+                agentName: call.agentName || 'Unknown Agent',
                 toNumber: call.toNumber || 'Unknown',
                 fromNumber: call.fromNumber || 'Inbound',
+                callType,
                 status,
                 durationSeconds: duration,
                 costCents: cost,

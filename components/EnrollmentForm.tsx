@@ -66,6 +66,9 @@ export default function EnrollmentForm() {
     }
   };
 
+  const apiBase = (process.env.NEXT_PUBLIC_API_BASE_URL || '').trim();
+  const enrollUrl = apiBase ? `${apiBase.replace(/\/$/, '')}/api/enroll` : '/api/enroll';
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -73,7 +76,7 @@ export default function EnrollmentForm() {
     setSubmissionSuccess(null);
 
     try {
-      const response = await fetch('/api/enroll', {
+      const response = await fetch(enrollUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -220,7 +223,7 @@ export default function EnrollmentForm() {
                 </div>
               ) : (
                 /* Form Fields */
-                <form onSubmit={handleSubmit} className="space-y-6">
+                <form action={enrollUrl} method="post" onSubmit={handleSubmit} className="space-y-6">
                   
                   {/* Field 1: Student Name */}
                   <div className="space-y-2">

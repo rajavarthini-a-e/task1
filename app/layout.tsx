@@ -42,7 +42,7 @@ export default function RootLayout({
         />
         <script
           src="https://app.snapserve.ai/api/widget/lead-capture.js"
-          data-token="YOUR_TOKEN"
+          data-token="c245eaba-bcdf-46bc-b1d7-d7f22894b021"
         ></script>
       </head>
       <body className="bg-slate-950 text-slate-100 antialiased selection:bg-indigo-500 selection:text-white">

@@ -16,7 +16,15 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const contentType = request.headers.get('content-type') || '';
+    let body: any;
+
+    if (contentType.includes('application/x-www-form-urlencoded')) {
+      const formData = await request.formData();
+      body = Object.fromEntries(formData.entries());
+    } else {
+      body = await request.json();
+    }
 
     // 1. Server-side validation using Zod
     const validationResult = enrollmentSchema.safeParse(body);
